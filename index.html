@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Heart Animation ❤️</title>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital@0;1&family=DM+Mono:wght@300;400&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --hue: 340;
+      --primary: hsl(var(--hue), 80%, 65%);
+      --primary-dim: hsl(var(--hue), 60%, 40%);
+      --glow: hsl(var(--hue), 90%, 75%);
+      --bg: #060608;
+      --panel-bg: rgba(255,255,255,0.04);
+      --panel-border: rgba(255,255,255,0.08);
+      --text: rgba(255,255,255,0.85);
+      --muted: rgba(255,255,255,0.35);
+      --speed: 8000ms;
+      --count: 80;
+      --scale: 15;
+    }
+
+    body {
+      background: var(--bg);
+      min-height: 100vh;
+      display: grid;
+      grid-template-rows: 1fr auto;
+      font-family: 'DM Mono', monospace;
+      overflow: hidden;
+      cursor: none;
+    }
+
+    /* ── Custom cursor ── */
+    #cursor {
+      position: fixed;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--primary);
+      pointer-events: none;
+      z-index: 9999;
+      transform: translate(-50%,-50%);
+      box-shadow: 0 0 12px var(--glow), 0 0 30px var(--primary-dim);
+      transition: transform 0.05s, background 0.3s, box-shadow 0.3s;
+    }
+
+    /* ── Noise texture overlay ── */
+    body::before {
+      content: '';
+      position: fixed; inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none; z-index: 0; opacity: 0.4;
+    }
+
+    /* ── Radial glow bg ── */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: radial-gradient(ellipse 60% 50% at 50% 45%, hsl(var(--hue),50%,12%) 0%, transparent 70%);
+      pointer-events: none; z-index: 0;
+      transition: background 0.6s;
+    }
+
+    /* ── Stage ── */
+    #stage {
+      position: relative;
+      display: flex; align-items: center; justify-content: center;
+      z-index: 1;
+    }
+
+    #ui {
+      position: relative;
+      transform-style: preserve-3d;
+      perspective: 1200px;
+    }
+
+    /* ── Heart particles ── */
+    .particle {
+      position: absolute;
+      transform-style: preserve-3d;
+      animation: sway var(--speed) infinite alternate ease-in-out;
+      animation-delay: calc(var(--i) * calc(var(--speed) / var(--count) * -1));
+    }
+
+    .particle-inner {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      animation: float calc(var(--speed) * 0.7) infinite alternate ease-in-out;
+      animation-delay: calc(var(--i) * -120ms);
+    }
+
+    .word {
+      color: var(--primary);
+      font-size: clamp(0.55rem, 1.2vw, 0.85rem);
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      text-shadow: 0 0 6px var(--glow), 0 0 20px var(--primary-dim);
+      white-space: nowrap;
+      letter-spacing: 0.5px;
+      opacity: 0.9;
+      transition: color 0.6s, text-shadow 0.6s;
+    }
+
+    .dot {
+      width: 3px; height: 3px;
+      border-radius: 50%;
+      background: var(--glow);
+      box-shadow: 0 0 6px var(--glow);
+      opacity: 0.5;
+      transition: background 0.6s, box-shadow 0.6s;
+    }
+
+    @keyframes sway {
+      from { transform: translateX(-28px) rotateY(-12deg) rotateX(3deg); }
+      to   { transform: translateX(28px)  rotateY(12deg)  rotateX(-3deg); }
+    }
+
+    @keyframes float {
+      from { transform: translateY(-6px); }
+      to   { transform: translateY(6px); }
+    }
+
+    /* ── Controls panel ── */
+    #panel {
+      position: fixed;
+      bottom: 0; left: 0; right: 0;
+      z-index: 10;
+      padding: 16px 24px 20px;
+      background: linear-gradient(to top, rgba(6,6,8,0.98), rgba(6,6,8,0.7) 80%, transparent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+
+    .ctrl-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .ctrl-label {
+      font-size: 0.6rem;
+      color: var(--muted);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .ctrl-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    /* Text input */
+    #textInput {
+      background: var(--panel-bg);
+      border: 1px solid var(--panel-border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'DM Mono', monospace;
+      font-size: 0.75rem;
+      padding: 6px 10px;
+      width: 160px;
+      outline: none;
+      transition: border-color 0.3s;
+    }
+    #textInput:focus { border-color: var(--primary); }
+
+    /* Sliders */
+    input[type=range] {
+      -webkit-appearance: none;
+      width: 90px; height: 2px;
+      background: var(--panel-border);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      background: var(--primary);
+      box-shadow: 0 0 8px var(--glow);
+      transition: background 0.3s, box-shadow 0.3s;
+    }
+
+    /* Color swatches */
+    .swatches {
+      display: flex;
+      gap: 6px;
+    }
+
+    .swatch {
+      width: 18px; height: 18px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.2s, border-color 0.2s;
+    }
+    .swatch:hover, .swatch.active { transform: scale(1.25); border-color: rgba(255,255,255,0.5); }
+
+    /* Divider */
+    .divider {
+      width: 1px; height: 40px;
+      background: var(--panel-border);
+      flex-shrink: 0;
+    }
+
+    /* Value display */
+    .val {
+      font-size: 0.65rem;
+      color: var(--muted);
+      min-width: 26px;
+      text-align: right;
+    }
+
+    /* ── Title ── */
+    #title {
+      position: fixed;
+      top: 22px; left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    #title h1 {
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: clamp(0.9rem, 2vw, 1.3rem);
+      color: var(--primary);
+      letter-spacing: 3px;
+      text-shadow: 0 0 20px var(--primary-dim);
+      transition: color 0.6s, text-shadow 0.6s;
+    }
+
+    #title p {
+      font-size: 0.55rem;
+      color: var(--muted);
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      margin-top: 3px;
+    }
+
+    /* ── Click burst ── */
+    .burst-particle {
+      position: fixed;
+      pointer-events: none;
+      z-index: 8000;
+      font-family: 'Playfair Display', serif;
+      font-style: italic;
+      font-size: 0.8rem;
+      color: var(--primary);
+      text-shadow: 0 0 8px var(--glow);
+      white-space: nowrap;
+      animation: burst-fly 900ms ease-out forwards;
+      transform-origin: center;
+    }
+
+    @keyframes burst-fly {
+      0%   { opacity: 1; transform: translate(0, 0) scale(1); }
+      100% { opacity: 0; transform: translate(var(--tx), var(--ty)) scale(0.3); }
+    }
+
+    .click-ring {
+      position: fixed;
+      pointer-events: none;
+      z-index: 7999;
+      border-radius: 50%;
+      border: 1.5px solid var(--primary);
+      transform: translate(-50%, -50%) scale(0);
+      animation: ring-expand 600ms ease-out forwards;
+    }
+
+    @keyframes ring-expand {
+      0%   { transform: translate(-50%, -50%) scale(0); opacity: 0.8; width: 10px; height: 10px; }
+      100% { transform: translate(-50%, -50%) scale(1); opacity: 0;   width: 80px; height: 80px; }
+    }
+
+    /* ── Mobile ── */
+    @media (max-width: 600px) {
+      #panel { gap: 12px; padding: 12px 16px 16px; }
+      #textInput { width: 120px; }
+      input[type=range] { width: 70px; }
+      .divider { display: none; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="cursor"></div>
+
+<div id="title">
+  <h1>Kalp Animasyonu</h1>
+  <p>Ahmet Can Bakırtaş</p>
+</div>
+
+<div id="stage">
+  <div id="ui"></div>
+</div>
+
+<div id="panel">
+  <!-- Mesaj -->
+  <div class="ctrl-group">
+    <span class="ctrl-label">Mesaj</span>
+    <input id="textInput" type="text" value="" placeholder="Mesajını yaz..." maxlength="20" spellcheck="false">
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Renk -->
+  <div class="ctrl-group">
+    <span class="ctrl-label">Renk</span>
+    <div class="swatches" id="swatches">
+      <div class="swatch active" data-hue="340" style="background:hsl(340,75%,60%)"></div>
+      <div class="swatch" data-hue="200" style="background:hsl(200,75%,60%)"></div>
+      <div class="swatch" data-hue="270" style="background:hsl(270,65%,65%)"></div>
+      <div class="swatch" data-hue="140" style="background:hsl(140,60%,50%)"></div>
+      <div class="swatch" data-hue="30"  style="background:hsl(30,85%,60%)"></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Hız -->
+  <div class="ctrl-group">
+    <span class="ctrl-label">Hız</span>
+    <div class="ctrl-row">
+      <input id="speedSlider" type="range" min="2" max="20" value="8">
+      <span class="val" id="speedVal">8s</span>
+    </div>
+  </div>
+
+  <!-- Yoğunluk -->
+  <div class="ctrl-group">
+    <span class="ctrl-label">Yoğunluk</span>
+    <div class="ctrl-row">
+      <input id="densitySlider" type="range" min="20" max="140" value="80">
+      <span class="val" id="densityVal">80</span>
+    </div>
+  </div>
+
+  <!-- Boyut -->
+  <div class="ctrl-group">
+    <span class="ctrl-label">Boyut</span>
+    <div class="ctrl-row">
+      <input id="sizeSlider" type="range" min="8" max="22" value="15">
+      <span class="val" id="sizeVal">15</span>
+    </div>
+  </div>
+</div>
+
+<script>
+  /* ── Cursor ── */
+  const cursor = document.getElementById('cursor');
+  document.addEventListener('mousemove', e => {
+    cursor.style.left = e.clientX + 'px';
+    cursor.style.top  = e.clientY + 'px';
+  });
+
+  /* ── State ── */
+  let config = {
+    text: '♥',
+    hue: 340,
+    speed: 8,
+    count: 80,
+    scale: 15
+  };
+
+  /* ── Build heart ── */
+  const ui = document.getElementById('ui');
+
+  function buildHeart() {
+    ui.innerHTML = '';
+    const { text, count, scale } = config;
+
+    for (let i = 0; i < count; i++) {
+      const t = (i / count) * 2 * Math.PI;
+      const x = 16 * Math.pow(Math.sin(t), 3);
+      const y = -(13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+
+      const wrap = document.createElement('div');
+      wrap.className = 'particle';
+      wrap.style.setProperty('--i', i);
+      wrap.style.left = `${x * scale}px`;
+      wrap.style.top  = `${y * scale}px`;
+
+      const inner = document.createElement('div');
+      inner.className = 'particle-inner';
+
+      const word = document.createElement('span');
+      word.className = 'word';
+      word.textContent = text;
+
+      const dot = document.createElement('div');
+      dot.className = 'dot';
+
+      inner.appendChild(word);
+      wrap.appendChild(inner);
+      ui.appendChild(wrap);
+    }
+  }
+
+  function applySpeed() {
+    document.documentElement.style.setProperty('--speed', config.speed * 1000 + 'ms');
+  }
+
+  function applyCount() {
+    document.documentElement.style.setProperty('--count', config.count);
+  }
+
+  function applyScale() {
+    document.documentElement.style.setProperty('--scale', config.scale);
+  }
+
+  function applyHue() {
+    const h = config.hue;
+    document.documentElement.style.setProperty('--hue', h);
+  }
+
+  function init() {
+    applyHue(); applySpeed(); applyCount(); applyScale();
+    buildHeart();
+  }
+
+  /* ── Controls ── */
+  document.getElementById('textInput').addEventListener('input', e => {
+    config.text = e.target.value || '♥';
+    buildHeart();
+  });
+
+  document.getElementById('speedSlider').addEventListener('input', e => {
+    config.speed = +e.target.value;
+    document.getElementById('speedVal').textContent = config.speed + 's';
+    applySpeed();
+  });
+
+  document.getElementById('densitySlider').addEventListener('input', e => {
+    config.count = +e.target.value;
+    document.getElementById('densityVal').textContent = config.count;
+    applyCount();
+    buildHeart();
+  });
+
+  document.getElementById('sizeSlider').addEventListener('input', e => {
+    config.scale = +e.target.value;
+    document.getElementById('sizeVal').textContent = config.scale;
+    applyScale();
+    buildHeart();
+  });
+
+  document.querySelectorAll('.swatch').forEach(s => {
+    s.addEventListener('click', () => {
+      document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+      s.classList.add('active');
+      config.hue = +s.dataset.hue;
+      applyHue();
+    });
+  });
+
+  /* ── Click burst ── */
+  document.addEventListener('click', e => {
+    if (e.target.closest('#panel')) return;
+
+    const count = 10 + Math.floor(Math.random() * 6);
+    for (let i = 0; i < count; i++) {
+      const el = document.createElement('div');
+      el.className = 'burst-particle';
+      el.textContent = '♥';
+
+      const angle = (i / count) * 2 * Math.PI + (Math.random() - 0.5) * 0.4;
+      const dist  = 50 + Math.random() * 80;
+      const tx = Math.cos(angle) * dist;
+      const ty = Math.sin(angle) * dist;
+
+      el.style.left = e.clientX + 'px';
+      el.style.top  = e.clientY + 'px';
+      el.style.setProperty('--tx', tx + 'px');
+      el.style.setProperty('--ty', ty + 'px');
+      el.style.animationDelay = (Math.random() * 80) + 'ms';
+
+      document.body.appendChild(el);
+      el.addEventListener('animationend', () => el.remove());
+    }
+
+    // Halka efekti
+    const ring = document.createElement('div');
+    ring.className = 'click-ring';
+    ring.style.left = e.clientX + 'px';
+    ring.style.top  = e.clientY + 'px';
+    document.body.appendChild(ring);
+    ring.addEventListener('animationend', () => ring.remove());
+  });
+
+  /* ── Keyboard shortcut: R = randomize ── */
+  document.addEventListener('keydown', e => {
+    if (e.key === 'r' || e.key === 'R') {
+      config.hue   = Math.floor(Math.random() * 360);
+      config.count = 40 + Math.floor(Math.random() * 80);
+      config.scale = 10 + Math.floor(Math.random() * 10);
+      config.speed = 4 + Math.floor(Math.random() * 12);
+      document.getElementById('densitySlider').value = config.count;
+      document.getElementById('sizeSlider').value    = config.scale;
+      document.getElementById('speedSlider').value   = config.speed;
+      document.getElementById('densityVal').textContent = config.count;
+      document.getElementById('sizeVal').textContent    = config.scale;
+      document.getElementById('speedVal').textContent   = config.speed + 's';
+      document.querySelectorAll('.swatch').forEach(x => x.classList.remove('active'));
+      init();
+    }
+  });
+
+  init();
+</script>
+</body>
+</html>
